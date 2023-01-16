@@ -72,8 +72,35 @@ def part2_forward_kinematics(joint_name, joint_parent, joint_offset, motion_data
         1. joint_orientations的四元数顺序为(x, y, z, w)
         2. from_euler时注意使用大写的XYZ
     """
-    joint_positions = None
-    joint_orientations = None
+
+    # 默认Channel设置是RootJoint节点有6个channel(平移和旋转)，其余子节点有3个，末端节点没有channel。
+    # 所以motion data前三个数字存放的是根节点位置，之后的数据才是存放的旋转数据
+    Root_position = np.zeros(3, dtype=np.float64)
+    for i in range(3):
+        Root_position[i] = motion_data[frame_id][i]
+
+    Channel_limit = int(len(motion_data[frame_id])/3) - 1
+    NoEndJoint_EulerRotations = np.zeros((Channel_limit,3), dtype=np.float64)
+    for i in range(Channel_limit):
+        for j in range(3):
+            NoEndJoint_EulerRotations[i][j] = motion_data[frame_id][3*(i+1)+j]
+
+    cnt = 0
+    Joint_num = len(joint_name)
+    joint_positions = np.zeros((Joint_num, 3), dtype=np.float64)
+    joint_orientations = np.zeros((Joint_num, 4), dtype=np.float64)
+
+    for i in range(Joint_num):
+        if joint_parent[i] == -1:
+            joint_positions[i] = Root_position
+            joint_orientations[i] = R.from_euler('XYZ', NoEndJoint_EulerRotations[cnt], degrees=True).as_quat()
+        else:
+            if '_end' not in joint_name[i]:
+                cnt += 1
+            joint_orientations[i] = (R.from_quat(joint_orientations[joint_parent[i]]) * R.from_euler('XYZ', NoEndJoint_EulerRotations[cnt], degrees=True)).as_quat()
+            joint_positions[i] = joint_positions[joint_parent[i]] + R.from_quat(joint_orientations[joint_parent[i]]).apply(joint_offset[i])
+
+
     return joint_positions, joint_orientations
 
 
