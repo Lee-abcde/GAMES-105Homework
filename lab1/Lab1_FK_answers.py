@@ -114,5 +114,34 @@ def part3_retarget_func(T_pose_bvh_path, A_pose_bvh_path):
         两个bvh的joint name顺序可能不一致哦(
         as_euler时也需要大写的XYZ
     """
-    motion_data = None
+    APose_joint_name, APose_joint_parent, APose_joint_offset = part1_calculate_T_pose(A_pose_bvh_path)
+    TPose_joint_name, TPose_joint_parent, TPose_joint_offset = part1_calculate_T_pose(T_pose_bvh_path)
+    APose_motion_data = load_motion_data(A_pose_bvh_path)
+
+
+    Joint_num = len(APose_joint_name)
+
+    motion_data = np.zeros(APose_motion_data.shape, dtype=np.float64)
+    Frame_num, Channel_num = motion_data.shape
+
+    for i in range(Frame_num):
+        for j in range(3):
+            motion_data[i][j] = APose_motion_data[i][j]
+
+        cntA = 0
+        for j in range(Joint_num):
+            if '_end' not in TPose_joint_name[j]:
+                cntT = 0
+                for k in range(Joint_num):
+                    if '_end' not in APose_joint_name[k]:
+                        if TPose_joint_name[j] == APose_joint_name[k]:
+                            for t in range(3):
+                                motion_data[i][3*(cntA+1)+t] = APose_motion_data[i][3*(cntT+1)+t]
+                            if TPose_joint_name[j] == 'lShoulder':
+                                motion_data[i][3*(cntA+1)+2] -= 45.
+                            elif TPose_joint_name[j] == 'rShoulder':
+                                motion_data[i][3*(cntA+1)+2] += 45.
+                        cntT += 1
+                cntA += 1
+
     return motion_data
